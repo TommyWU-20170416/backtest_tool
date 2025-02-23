@@ -38,16 +38,21 @@ def backtest(data, buy_levels, buy_multipliers, take_profit, stop_loss, leverage
                 buy_qty = (initial_balance / price) * qty_multiplier
                 position += buy_qty
                 entry_price = price
-                # trade_log.append(("BUY", data.index[i], price, buy_qty))
+                trade_log.append(("BUY", data.index[i], price, buy_qty))
                 buy_points.append((data.index[i], price))  # 記錄買入點
-                break  # 只買一次，避免同時多個加倉
+
+                # 只有在加倉時才更新 entry_price
+                if entry_price is None or price < entry_price:
+                    entry_price = price  # 讓加倉後的 entry_price 為最低點
 
         # 檢查是否達到止盈
-        if entry_price and price >= entry_price * (1 + take_profit / 100):
-            profit = position * (price - entry_price) * leverage
+        if entry_price and price >= entry_price * (1 + take_profit / 100) and position > 0:
+            avg_entry_price = sum(
+                [trade[2] * trade[3] for trade in trade_log if trade[0] == "BUY"]) / position
+            profit = position * (price - avg_entry_price) * leverage
             balance += profit
             position = 0  # 清空倉位
-            # trade_log.append(("SELL", data.index[i], price, profit))
+            trade_log.append(("SELL", data.index[i], price, profit))
             sell_points.append((data.index[i], price))  # 記錄賣出點
 
         # 檢查是否達到止損
